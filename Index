@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure File Access</title>
+  <!-- Using Tailwind CSS for modern, responsive styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans">
+
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <h2 class="text-2xl font-bold text-slate-800">Secure Portal</h2>
+      <p class="text-slate-500 mt-2 text-sm">Enter your credentials to access your file.</p>
+    </div>
+
+    <form id="loginForm" class="space-y-6">
+      <!-- Error Message Box -->
+      <div id="errorMessage" class="hidden bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 text-center">
+        <!-- Error text goes here -->
+      </div>
+
+      <div>
+        <label for="username" class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+        <input type="text" id="username" name="username" required 
+          class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+          placeholder="Enter username">
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+        <input type="password" id="password" name="password" required 
+          class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+          placeholder="••••••••">
+      </div>
+
+      <button type="submit" id="submitBtn" 
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed">
+        <span>Access File</span>
+      </button>
+    </form>
+    
+    <div class="mt-6 text-center">
+      <p class="text-xs text-slate-400">&copy; Secure Access System</p>
+    </div>
+  </div>
+
+  <!-- Using type="module" to allow ES6 imports for Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Your provided Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyA_G6PasMl0oPnzndtttjWT0c4cu3g-1Lc",
+      authDomain: "classschedule-a5c93.firebaseapp.com",
+      projectId: "classschedule-a5c93",
+      storageBucket: "classschedule-a5c93.firebasestorage.app",
+      messagingSenderId: "915049422699",
+      appId: "1:915049422699:web:29262a5f78b4764edf762e"
+    };
+
+    // Initialize Firebase and Firestore
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault(); // Prevent standard form submission
+      
+      const user = document.getElementById('username').value.trim();
+      const pass = document.getElementById('password').value.trim();
+      const btn = document.getElementById('submitBtn');
+      const errorDiv = document.getElementById('errorMessage');
+
+      // Set loading state
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Verifying...
+      `;
+      errorDiv.classList.add('hidden');
+
+      try {
+        // Fetch all documents from the "users" collection
+        const querySnapshot = await getDocs(collection(db, "users"));
+        let matchFound = false;
+        let targetUrl = "";
+
+        // Check against Firestore data
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.username === user && data.password === pass) {
+            matchFound = true;
+            targetUrl = data.url;
+          }
+        });
+
+        // Handle routing based on matching credentials
+        if (matchFound) {
+          if (targetUrl) {
+            window.open(targetUrl, '_top'); 
+          } else {
+            errorDiv.innerText = "No file URL assigned to this user.";
+            errorDiv.classList.remove('hidden');
+            resetButton(btn);
+          }
+        } else {
+          errorDiv.innerText = "Invalid username or password.";
+          errorDiv.classList.remove('hidden');
+          resetButton(btn);
+        }
+      } catch (error) {
+        console.error("Error connecting to Firestore:", error);
+        errorDiv.innerText = "Database connection error. Please ensure your Firestore security rules allow read access.";
+        errorDiv.classList.remove('hidden');
+        resetButton(btn);
+      }
+    });
+
+    function resetButton(btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>Access File</span>';
+    }
+  </script>
+</body>
+</html>
