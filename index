@@ -51,30 +51,12 @@
     </div>
   </div>
 
-  <!-- Using type="module" to allow ES6 imports for Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // Your provided Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyA_G6PasMl0oPnzndtttjWT0c4cu3g-1Lc",
-      authDomain: "classschedule-a5c93.firebaseapp.com",
-      projectId: "classschedule-a5c93",
-      storageBucket: "classschedule-a5c93.firebasestorage.app",
-      messagingSenderId: "915049422699",
-      appId: "1:915049422699:web:29262a5f78b4764edf762e"
-    };
-
-    // Initialize Firebase and Firestore
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
       e.preventDefault(); // Prevent standard form submission
       
-      const user = document.getElementById('username').value.trim();
-      const pass = document.getElementById('password').value.trim();
+      const user = document.getElementById('username').value;
+      const pass = document.getElementById('password').value;
       const btn = document.getElementById('submitBtn');
       const errorDiv = document.getElementById('errorMessage');
 
@@ -89,41 +71,27 @@
       `;
       errorDiv.classList.add('hidden');
 
-      try {
-        // Fetch all documents from the "users" collection
-        const querySnapshot = await getDocs(collection(db, "users"));
-        let matchFound = false;
-        let targetUrl = "";
-
-        // Check against Firestore data
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.username === user && data.password === pass) {
-            matchFound = true;
-            targetUrl = data.url;
-          }
-        });
-
-        // Handle routing based on matching credentials
-        if (matchFound) {
-          if (targetUrl) {
-            window.open(targetUrl, '_top'); 
-          } else {
-            errorDiv.innerText = "No file URL assigned to this user.";
-            errorDiv.classList.remove('hidden');
-            resetButton(btn);
-          }
-        } else {
-          errorDiv.innerText = "Invalid username or password.";
-          errorDiv.classList.remove('hidden');
-          resetButton(btn);
-        }
-      } catch (error) {
-        console.error("Error connecting to Firestore:", error);
-        errorDiv.innerText = "Database connection error. Please ensure your Firestore security rules allow read access.";
-        errorDiv.classList.remove('hidden');
-        resetButton(btn);
-      }
+      // Call the Google Apps Script backend function
+      google.script.run
+        .withSuccessHandler(function(response) {
+           if(response.success) {
+             // Redirect the user to the Google Drive file URL
+             // _top ensures it breaks out of the Apps Script iframe
+             window.open(response.url, '_top'); 
+           } else {
+             // Show error message
+             errorDiv.innerText = response.message;
+             errorDiv.classList.remove('hidden');
+             resetButton(btn);
+           }
+        })
+        .withFailureHandler(function(error) {
+           // Handle network/execution errors
+           errorDiv.innerText = "Connection error. Please try again later.";
+           errorDiv.classList.remove('hidden');
+           resetButton(btn);
+        })
+        .authenticateAndGetFile(user, pass);
     });
 
     function resetButton(btn) {
